@@ -37,7 +37,17 @@ def requestheaders(flow: http.HTTPFlow):
             
             # ここからnew_cookiesを使って、cookiesのheadersを削除する処理を書く。
             
-    
+    """
+    ['aaa=aaa', 'bbb=bbb', 'ccc=ccc']となったとき、 flow.request.headers.get('cookie', '').split('=')
+    を実行すると、['aaa', 'aaa,bbb', 'bbb,ccc', 'ccc,ddd']と続いていく。
+    あくまで、split('=')と=を明示的にしたため、カンマはスルーされる。
+    なので、次に['aaa', 'aaa,bbb', 'bbb,ccc', 'ccc,ddd']を格納したcookiesを回し、
+    for cookie in cookies:
+        new_cookies.extend(cookie.split(','))とカンマを明示的にsplit()させると、
+    ['aaa', 'aaa', 'bbb', 'bbb', 'ccc', 'ccc']と要素ごとに区切られる。
+    listのappendと、extendの違いは、append()は単一の要素を追加。
+    extend()は複数の要素を追加できる。
+    """
 
 def responseheaders(flow: http.HTTPFlow):
     for block_url in block_list:
