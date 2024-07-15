@@ -1,5 +1,6 @@
-from mitmproxy import http 
+from mitmproxy import http, ctx
 from mitmproxy.http import cookies 
+import re 
 
 block_list = [
     'https://www.youtube.com/api',
@@ -21,13 +22,22 @@ def requestheaders(flow: http.HTTPFlow):
                 'X-Forwarded-Proto': 'HTTPS'
             })
             
-            # cookie情報だけ、削除されてない。 要因はおそらく、request.cookieには存在してなくて、 cookie()を別で作って削除する方法。document確認。
-            del flow.request.cookies['VISITOR_INF01_LIVE']
-            del flow.request.cookies['HSID']
-            del flow.request.cookies['SSID']
-            del flow.request.cookies['YSC']
-            del flow.request.cookies['PREF']
-            del flow.request.cookies['SID']
+            # 削除するcookieリスト
+            target_cookies = ['VISITOR_INF', 'HSID', 'SSID', 'YSC', 'PREF', 'SID']
+            
+            cookies = flow.request.headers.get('cookie', '').split('=')  # 文字列でcookiesの情報取得
+            ctx.log.info(f'cookies: {cookies}')
+            
+            new_cookies = []
+            # cookieタグを抽出。 =の後の値は取得しない。
+                
+            for cookie in cookies:
+                new_cookies.extend(cookie.split(','))
+
+            ctx.log.info(f'new_cookies: {new_cookies}') # new_cookiesにcookiesのheaderとその値が入っている。
+            
+            # ここからnew_cookiesを使って、cookiesのheadersを削除する処理を書く。
+            
     
 
 def responseheaders(flow: http.HTTPFlow):
