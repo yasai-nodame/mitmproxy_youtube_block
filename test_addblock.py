@@ -1,6 +1,5 @@
 from mitmproxy import http, ctx
 from mitmproxy.http import cookies 
-import re 
 
 block_list = [
     'https://www.youtube.com/api',
