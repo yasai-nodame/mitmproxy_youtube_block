@@ -47,6 +47,10 @@ def requestheaders(flow: http.HTTPFlow):
     ['aaa', 'aaa', 'bbb', 'bbb', 'ccc', 'ccc']と要素ごとに区切られる。
     listのappendと、extendの違いは、append()は単一の要素を追加。
     extend()は複数の要素を追加できる。
+    
+    書き方としては、 list = [1,2,3,4,5,6] とある時、 
+    append()の場合は、単一なので、 list.append(10)で、 list = [1,2,3,4,5,6,10]となる。
+    extend()の場合は、複数なので、 list.extend([10,11]) とすると、 list = [1,2,3,4,5,6,10,11]となる。
     """
 
 def responseheaders(flow: http.HTTPFlow):
