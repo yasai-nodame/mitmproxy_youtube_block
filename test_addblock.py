@@ -1,4 +1,5 @@
 from mitmproxy import http, ctx
+import re
 
 block_list = [
     'https://www.youtube.com/api',
@@ -22,26 +23,29 @@ def requestheaders(flow: http.HTTPFlow):
             
             # 削除するcookieリスト
             target_cookies = ['VISITOR_INFO1_LIVE', 'HSID', 'SSID', 'YSC', 'PREF', 'SID']
-            
-            cookies = flow.request.headers.get('cookie', '').split('=')  # 文字列でcookiesの情報取得
-            ctx.log.info(f'cookies: {cookies}')
+            cookies = flow.request.headers.get('cookie', '').split(',') # 文字列でcookiesの情報取得
             
             divide_cookies = [] # cookieのname=valueを、　'name', 'value'と分けていくリスト 
             new_cookies_new = []
             
-            # cookieタグを抽出。 =の後の値は取得しない。
-                
+            # cookie headerの最初の=の時だけ、分割。
+            # (例 PREF=tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000 の時、 'PREF', 'tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000' で分割する。
             for cookie in cookies:
-                divide_cookies.extend(cookie.split(','))
+                name, value = cookie.split('=', maxsplit=1)
+                divide_cookies.extend([name, value])
 
             ctx.log.info(f'new_cookies: {divide_cookies}') # new_cookiesにcookiesのheaderとその値が入っている。
-
-            for divide_cookie in divide_cookies:
+                        
+            for i in range(len(divide_cookies) - 1, -1, -1):
                 for target_cookie in target_cookies:
-                    if divide_cookie.strip() == target_cookie:
-                        ctx.log.info(f'divide_cookie:{divide_cookie} = target_cookie: {target_cookie} is True') #全て一致してた。
+                    if divide_cookies[i].strip() == target_cookie:
+                        del divide_cookies[i]
+                        if i < len(divide_cookies):
+                            del divide_cookies[i]
             
-                
+            # 前の要素と次の要素をcookie header形式に変換　つまり、 name=valueの形式にする。
+            
+            
             
             
     """
