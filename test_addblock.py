@@ -1,5 +1,4 @@
 from mitmproxy import http, ctx
-from mitmproxy.http import cookies 
 
 block_list = [
     'https://www.youtube.com/api',
@@ -22,20 +21,28 @@ def requestheaders(flow: http.HTTPFlow):
             })
             
             # 削除するcookieリスト
-            target_cookies = ['VISITOR_INF', 'HSID', 'SSID', 'YSC', 'PREF', 'SID']
+            target_cookies = ['VISITOR_INFO1_LIVE', 'HSID', 'SSID', 'YSC', 'PREF', 'SID']
             
             cookies = flow.request.headers.get('cookie', '').split('=')  # 文字列でcookiesの情報取得
             ctx.log.info(f'cookies: {cookies}')
             
-            new_cookies = []
+            divide_cookies = [] # cookieのname=valueを、　'name', 'value'と分けていくリスト 
+            new_cookies_new = []
+            
             # cookieタグを抽出。 =の後の値は取得しない。
                 
             for cookie in cookies:
-                new_cookies.extend(cookie.split(','))
+                divide_cookies.extend(cookie.split(','))
 
-            ctx.log.info(f'new_cookies: {new_cookies}') # new_cookiesにcookiesのheaderとその値が入っている。
+            ctx.log.info(f'new_cookies: {divide_cookies}') # new_cookiesにcookiesのheaderとその値が入っている。
+
+            for divide_cookie in divide_cookies:
+                for target_cookie in target_cookies:
+                    if divide_cookie.strip() == target_cookie:
+                        ctx.log.info(f'divide_cookie:{divide_cookie} = target_cookie: {target_cookie} is True') #全て一致してた。
             
-            # ここからnew_cookiesを使って、cookiesのheadersを削除する処理を書く。
+                
+            
             
     """
     ['aaa=aaa', 'bbb=bbb', 'ccc=ccc']となったとき、 flow.request.headers.get('cookie', '').split('=')
@@ -53,11 +60,11 @@ def requestheaders(flow: http.HTTPFlow):
     extend()の場合は、複数なので、 list.extend([10,11]) とすると、 list = [1,2,3,4,5,6,10,11]となる。
     """
 
-def responseheaders(flow: http.HTTPFlow):
-    for block_url in block_list:
-        if flow.response.url.startwith(block_url):
-            flow.response.headers['content-length'] = 0
-            flow.response.headers.update({
-                'content-type': 'text/html',
-                'cache-control': 'no-cache'
-            })
+# def responseheaders(flow: http.HTTPFlow):
+#     for block_url in block_list:
+#         if flow.response.url.startwith(block_url):
+#             flow.response.headers['content-length'] = 0
+#             flow.response.headers.update({
+#                 'content-type': 'text/html',
+#                 'cache-control': 'no-cache'
+#             })
