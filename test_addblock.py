@@ -12,12 +12,12 @@ block_list = [
 def requestheaders(flow: http.HTTPFlow):
     for block_url in block_list:
         if flow.request.url.startswith(block_url):
-            flow.request.headers['user-agent'] =  '	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0.3 Safari/605.1.15'
+            flow.request.headers['user-agent'] =  'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36'
             flow.request.headers['accept'] = 'text/html'
-            flow.request.headers['referer'] = 'https://www3.nhk.or.jp/news/'
+            flow.request.headers['referer'] = 'https://news.yahoo.co.jp/'
             
             flow.request.headers.update({
-                'X-Forwarded-For': '180.59.78.1',
+                'X-Forwarded-For': '180.59.78.7',
                 'X-Forwarded-Proto': 'HTTPS'
             })
             
@@ -26,7 +26,7 @@ def requestheaders(flow: http.HTTPFlow):
             cookies = flow.request.headers.get('cookie', '').split(',') # 文字列でcookiesの情報取得
             
             divide_cookies = [] # cookieのname=valueを、　'name', 'value'と分けていくリスト 
-            new_cookies_new = []
+            
             
             # cookie headerの最初の=の時だけ、分割。
             # (例 PREF=tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000 の時、 'PREF', 'tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000' で分割する。
@@ -53,8 +53,31 @@ def requestheaders(flow: http.HTTPFlow):
             if cookies_str.endswith('; '): # cookies_str.endwith(';') つまり、cookies_strの最後が;の場合 true:
                 cookies_str = cookies_str[:-2] # セミコロンと空白がついているため [:-2]のスライスで削除。 つまり、cookies_strの0から-2までの部分文字列を取得。
             
-            ctx.log.info(f'cookies_str: {cookies_str}')
+            flow.request.headers['cookie'] = cookies_str
             
+
+def responseheaders(flow: http.HTTPFlow):
+    for block_url in block_list:
+        if flow.response.url.startwith(block_url):
+            flow.response.headers['content-length'] = 0
+            flow.response.headers.update({
+                'content-type': 'text/html',
+                'cache-control': 'no-cache'
+            })
+
+
+# まだ、広告が表示される。　とりあえず、ほかはブロックされてるかクロームの開発者モードで確認。
+
+
+
+
+
+
+
+
+
+
+
     """
     ['aaa=aaa', 'bbb=bbb', 'ccc=ccc']となったとき、 flow.request.headers.get('cookie', '').split('=')
     を実行すると、['aaa', 'aaa,bbb', 'bbb,ccc', 'ccc,ddd']と続いていく。
@@ -104,12 +127,3 @@ def requestheaders(flow: http.HTTPFlow):
         divide_cookies = ['PREF', 'tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000', 'HSID', 'value1']
         になる。
     """
-
-# def responseheaders(flow: http.HTTPFlow):
-#     for block_url in block_list:
-#         if flow.response.url.startwith(block_url):
-#             flow.response.headers['content-length'] = 0
-#             flow.response.headers.update({
-#                 'content-type': 'text/html',
-#                 'cache-control': 'no-cache'
-#             })
