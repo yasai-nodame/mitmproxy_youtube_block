@@ -1,83 +1,47 @@
-from mitmproxy import http, ctx
 import re
-
-block_list = [
-    'https://www.youtube.com/api',
-    'https://www.youtube.com/youtubei',
-    'https://www.youtube.com/pagead'
-    'https://googleads.g.doubleclick.net',
-    
-]
+from mitmproxy import http, ctx
 
 def requestheaders(flow: http.HTTPFlow):
-    for block_url in block_list:
-        if flow.request.url.startswith(block_url):
-            flow.request.headers['user-agent'] =  'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36'
-            flow.request.headers['accept'] = 'text/html'
-            flow.request.headers['referer'] = 'https://news.yahoo.co.jp/'
-            
-            flow.request.headers.update({
-                'X-Forwarded-For': '180.59.78.7',
-                'X-Forwarded-Proto': 'HTTPS'
-            })
-            
-            # 削除するcookieリスト
-            target_cookies = ['VISITOR_INFO1_LIVE', 'HSID', 'SSID', 'YSC', 'PREF', 'SID']
-            cookies = flow.request.headers.get('cookie', '').split(',') # 文字列でcookiesの情報取得
-            
-            divide_cookies = [] # cookieのname=valueを、　'name', 'value'と分けていくリスト 
-            
-            
-            # cookie headerの最初の=の時だけ、分割。
-            # (例 PREF=tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000 の時、 'PREF', 'tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000' で分割する。
-            for cookie in cookies:
-                name, value = cookie.split('=', maxsplit=1)
-                divide_cookies.extend([name, value])
+    """
+    リクエスト URL を広告ブロックリストと照合し、広告をブロックします。
+    """
 
-            ctx.log.info(f'new_cookies: {divide_cookies}') # new_cookiesにcookiesのheaderとその値が入っている。
-                        
-            for i in range(len(divide_cookies) - 1, -1, -1): # 逆順に要素を取得していく理由は、順方向だと、削除したときにインデックスがずれるのを防ぐため。
-                for target_cookie in target_cookies:
-                    if divide_cookies[i].strip() == target_cookie:
-                        del divide_cookies[i]
-                        if i < len(divide_cookies):
-                            del divide_cookies[i]
-            
-            # 前の要素と次の要素をcookie header形式に変換　つまり、 name=valueの形式にする。
-            cookies_str = ''
-            for i in range(0, len(divide_cookies), 2): # 0~リストの長さlen(divide_cookies)を、2ずつ飛ばして回していく。step
-                if i + 1 < len(divide_cookies): # list index out of range 防止で i + 1がリストの長さ以下だった場合 true:
-                    cookies_str += f'{divide_cookies[i]}={divide_cookies[i + 1]}; ' # cookie headerのように ;をつける。
+    try:
+        # フィルタリストを読み込み、正規表現オブジェクトに変換
+        filter_sets = load_filter_sets()
 
-            # 最後のセミコロンとスペースを削除
-            if cookies_str.endswith('; '): # cookies_str.endwith(';') つまり、cookies_strの最後が;の場合 true:
-                cookies_str = cookies_str[:-2] # セミコロンと空白がついているため [:-2]のスライスで削除。 つまり、cookies_strの0から-2までの部分文字列を取得。
-            
-            flow.request.headers['cookie'] = cookies_str
-            
+        # URL を抽出
+        request_url = flow.request.url
 
-def responseheaders(flow: http.HTTPFlow):
-    for block_url in block_list:
-        if flow.response.url.startwith(block_url):
-            flow.response.headers['content-length'] = 0
-            flow.response.headers.update({
-                'content-type': 'text/html',
-                'cache-control': 'no-cache'
-            })
+        # URL フィルタリング
+        for filter_set in filter_sets.values():
+            if any(match for match in filter_set.match(request_url)):
+                # 広告ブロック判定
+                flow.abort()
+                ctx.log.info(f'広告をブロック: {request_url}')
+                break  # 一致したらループを抜ける
+
+    except Exception as e:  # エラー処理
+        ctx.log.error(f'広告ブロック処理でエラー発生: {e}')
+
+def load_filter_sets():
+    """
+    フィルタリストを読み込み、正規表現オブジェクトの辞書を返す
+    """
+
+    filter_sets = {}
+    for filename, filter_type in [('adguard.txt', 'easylist'), ('adguard.txt', 'adguard'),
+                                ('fanboy.txt', 'fanboy'), ('ublock.txt', 'ublock')]:
+        filter_set = set()
+        with open(filename, 'rb') as f:
+            for line in f:
+                filter_rule = line.decode().strip()
+                filter_set.add(re.compile(filter_rule))
+        filter_sets[filter_type] = filter_set
+    return filter_sets
 
 
-# まだ、広告が表示される。　とりあえず、ほかはブロックされてるかクロームの開発者モードで確認。
-
-
-
-
-
-
-
-
-
-
-
+    
     """
     ['aaa=aaa', 'bbb=bbb', 'ccc=ccc']となったとき、 flow.request.headers.get('cookie', '').split('=')
     を実行すると、['aaa', 'aaa,bbb', 'bbb,ccc', 'ccc,ddd']と続いていく。
@@ -127,3 +91,12 @@ def responseheaders(flow: http.HTTPFlow):
         divide_cookies = ['PREF', 'tz=Asia.Tokyo&f5=30000&f7=100&f4=4000000', 'HSID', 'value1']
         になる。
     """
+
+# def responseheaders(flow: http.HTTPFlow):
+#     for block_url in block_list:
+#         if flow.response.url.startwith(block_url):
+#             flow.response.headers['content-length'] = 0
+#             flow.response.headers.update({
+#                 'content-type': 'text/html',
+#                 'cache-control': 'no-cache'
+#             })
